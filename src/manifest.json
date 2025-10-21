@@ -1,0 +1,43 @@
+{
+  "Actions": [
+    {
+      "Icon": "assets/avatarIcon",
+      "Name": "Teams Avatar",
+      "States": [
+        {
+          "Image": "assets/avatarIcon",
+          "TitleAlignment": "bottom",
+          "FontSize": "10"
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Display Teams avatar with unread message count. Click to view messages.",
+      "UUID": "com.leandromenezes.teamsavatar.avatar"
+    }
+  ],
+  "SDKVersion": 2,
+  "Author": "Leandro Menezes",
+  "CodePath": "app.html",
+  "Description": "Display your Teams avatar with unread message count and view messages in a modal when clicked. Uses n8n webhooks to fetch avatar images and messages.",
+  "Name": "Teams Avatar",
+  "Icon": "assets/avatarIcon",
+  "Category": "Teams",
+  "CategoryIcon": "assets/avatarIcon",
+  "URL": "https://github.com/leandro-menezes/stream-deck-teams-avatar#readme",
+  "PropertyInspectorPath": "pi.html",
+  "Version": "1.0.0",
+  "OS": [
+    {
+        "Platform": "mac",
+        "MinimumVersion" : "10.11"
+    },
+    {
+        "Platform": "windows",
+        "MinimumVersion" : "10"
+    }
+  ],
+  "Software":
+    {
+        "MinimumVersion" : "4.1"
+    }
+}

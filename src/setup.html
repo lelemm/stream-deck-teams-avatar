@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
+        <meta name=apple-mobile-web-app-capable content=yes>
+        <meta name=apple-mobile-web-app-status-bar-style content=black>
+        <title>StreamDeck Teams Avatar Setup</title>
+        <link rel="stylesheet" href="css/sdpi.css">
+        <script src="js/setup.js"></script>
+    </head>
+    <body>
+        <div class="sdpi-wrapper">
+          <div id="alerts" class="content"></div>
+          <div class="sdpi-heading">Global Teams Avatar Settings</div>
+
+          <div class="sdpi-item full-row">
+            <div class="sdpi-item-label">Polling Interval (seconds)</div>
+            <input id="pollingInterval" class="sdpi-item-value" type="number" value="30" min="5" max="300" />
+            <div class="sdpi-item-label" style="font-size: 12px; color: #666; margin-top: 5px;">Shared polling interval for all buttons</div>
+          </div>
+
+          <div class="sdpi-item full-row">
+            <button class="sdpi-item-value" id="save" value="save">Save Settings</button>
+            <button class="sdpi-item-value" id="test" value="test">Test Connection</button>
+            <button class="sdpi-item-value" id="refresh" value="refresh">Force Refresh</button>
+          </div>
+
+          <div class="sdpi-heading">Features</div>
+          <div class="content">
+            <ul>
+              <li>Displays Teams user avatars on individual Stream Deck buttons</li>
+              <li>Shows unread message count as an overlay number</li>
+              <li>Click any button to view messages in a modal window</li>
+              <li>Each button can be configured for a different user</li>
+              <li>Configurable global polling interval for data updates</li>
+              <li>Uses n8n webhooks to fetch avatar images and messages</li>
+            </ul>
+
+            <h4>Webhook Requirements</h4>
+            <ul>
+              <li><strong>Avatar Webhook:</strong> Returns the user's avatar image (JPEG/PNG)</li>
+              <li><strong>Messages Webhook:</strong> Returns JSON array: <code>[{"title": "Subject", "body": "Message content"}]</code></li>
+              <li>Both webhooks accept <code>?user=email@domain.com</code> query parameter</li>
+            </ul>
+
+            <h4>Setup Instructions</h4>
+            <ol>
+              <li>Configure your n8n webhooks to accept user email as query parameter</li>
+              <li>Add multiple "Teams Avatar" actions to your Stream Deck</li>
+              <li>Configure each button individually with user email and webhook URLs</li>
+              <li>Set the global polling interval here</li>
+              <li>Test connections in each button's property inspector</li>
+            </ol>
+          </div>
+
+          <div class="sdpi-heading">Troubleshooting</div>
+          <div class="content">
+            <ul>
+              <li><strong>"Config Required":</strong> Each button needs individual configuration</li>
+              <li><strong>No avatar displayed:</strong> Check that the avatar webhook returns a valid image for that user</li>
+              <li><strong>No message count:</strong> Verify the messages webhook returns valid JSON array for that user</li>
+              <li><strong>Connection errors:</strong> Check webhook URLs and network connectivity</li>
+              <li><strong>Modal not showing:</strong> Ensure messages webhook returns data when clicked</li>
+              <li><strong>Settings not saving:</strong> Configure each button individually in its property inspector</li>
+            </ul>
+          </div>
+
+        </div>
+        <div class="sdpi-info-label hidden" style="top: -1000;" value=""></div>
+    </body>
+    </html>
