@@ -5,6 +5,7 @@
  */
 import StreamDeck from './lib/streamDeck'
 import TeamsAvatar from './actions/teamsAvatar'
+import TeamsRotating from './actions/teamsRotating'
 
 const streamDeck = new StreamDeck()
 
@@ -22,3 +23,4 @@ streamDeck.onGlobalSettingsReceived(() => {
 })
 
 streamDeck.registerAction(TeamsAvatar, 'com.leandromenezes.teamsavatar.avatar')
+streamDeck.registerAction(TeamsRotating, 'com.leandromenezes.teamsavatar.rotating')

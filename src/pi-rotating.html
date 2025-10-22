@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
+        <meta name=apple-mobile-web-app-capable content=yes>
+        <meta name=apple-mobile-web-app-status-bar-style content=black>
+        <title>com.leandromenezes.teamsavatar.rotating Property Inspector</title>
+        <link rel="stylesheet" href="css/sdpi.css">
+        <script src="js/pi-rotating.js"></script>
+    </head>
+    <body>
+        <div class="sdpi-wrapper">
+
+            <div class="sdpi-item">
+              <div class="sdpi-item-label">Avatar Webhook URL</div>
+              <input id="avatarWebhookUrl" class="sdpi-item-value" type="url" value="" placeholder="https://n8n.company.com/webhook/avatar" />
+            </div>
+
+            <div class="sdpi-item">
+              <div class="sdpi-item-label">Rotating Webhook URL</div>
+              <input id="rotatingWebhookUrl" class="sdpi-item-value" type="url" value="" placeholder="https://n8n.company.com/webhook/rotating" />
+            </div>
+
+            <div class="sdpi-item">
+              <div class="sdpi-item-label">Polling Refresh Rate (seconds)</div>
+              <input id="pollingRefreshRate" class="sdpi-item-value" type="number" value="30" min="5" max="300" />
+            </div>
+
+            <div class="sdpi-item">
+              <div class="sdpi-item-label">Carousel Duration (seconds)</div>
+              <input id="carouselDuration" class="sdpi-item-value" type="number" value="5" min="1" max="60" />
+            </div>
+
+            <div class="sdpi-item">
+              <button class="sdpi-item-value" id="save" value="save">Save Settings</button>
+              <button class="sdpi-item-value" id="test" value="test">Test Connection</button>
+            </div>
+
+        </div>
+
+        <div class="sdpi-info-label hidden" style="top: -1000;" value=""></div>
+    </body>
+    </html>

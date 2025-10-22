@@ -14,6 +14,7 @@ export default class TeamsAvatar extends Action {
     this.messages = []
     this.unreadCount = 0
     this._cacheVersion = 0
+    this.avatarCache = new Map() // Cache for avatar images by user email
 
     streamDeck.saveSettings(uuid, context, settings)
   }
@@ -46,6 +47,8 @@ export default class TeamsAvatar extends Action {
   onDidReceiveSettings (context, payload) {
     const settings = payload.settings || {}
     this.setSettings(settings)
+    // Clear cache when settings change
+    this.avatarCache.clear()
     // Restart polling with new settings
     if (this.interval) {
       clearInterval(this.interval)
@@ -88,18 +91,26 @@ export default class TeamsAvatar extends Action {
         return
       }
 
-      // Fetch avatar and messages in parallel
-      const [avatarResponse, messagesResponse] = await Promise.all([
-        fetch(`${avatarUrl}?user=${encodeURIComponent(email)}`),
-        fetch(`${messagesUrl}?user=${encodeURIComponent(email)}`)
-      ])
+      // Check cache first for avatar
+      if (this.avatarCache.has(email)) {
+        this.avatarImage = this.avatarCache.get(email)
+        this.streamDeck.log(`Using cached avatar for user ${email}`)
+      } else {
+        // Fetch avatar
+        const avatarResponse = await fetch(`${avatarUrl}?user=${encodeURIComponent(email)}`)
 
-      // Handle avatar
-      if (avatarResponse.ok) {
-        const avatarBlob = await avatarResponse.blob()
-        const avatarDataUrl = await this.blobToDataUrl(avatarBlob)
-        this.avatarImage = avatarDataUrl
+        if (avatarResponse.ok) {
+          const avatarBlob = await avatarResponse.blob()
+          const avatarDataUrl = await this.blobToDataUrl(avatarBlob)
+          this.avatarImage = avatarDataUrl
+          // Cache the avatar
+          this.avatarCache.set(email, avatarDataUrl)
+          this.streamDeck.log(`Cached avatar for user ${email}`)
+        }
       }
+
+      // Always fetch messages (they change frequently)
+      const messagesResponse = await fetch(`${messagesUrl}?user=${encodeURIComponent(email)}`)
 
       // Handle messages
       if (messagesResponse.ok) {

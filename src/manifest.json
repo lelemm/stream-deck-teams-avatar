@@ -12,7 +12,23 @@
       ],
       "SupportedInMultiActions": false,
       "Tooltip": "Display Teams avatar with unread message count. Click to view messages.",
-      "UUID": "com.leandromenezes.teamsavatar.avatar"
+      "UUID": "com.leandromenezes.teamsavatar.avatar",
+      "PropertyInspectorPath": "pi.html"
+    },
+    {
+      "Icon": "assets/avatarIcon",
+      "Name": "Teams Rotating",
+      "States": [
+        {
+          "Image": "assets/avatarIcon",
+          "TitleAlignment": "bottom",
+          "FontSize": "10"
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Display rotating Teams avatars with message counts from multiple users.",
+      "UUID": "com.leandromenezes.teamsavatar.rotating",
+      "PropertyInspectorPath": "pi-rotating.html"
     }
   ],
   "SDKVersion": 2,
@@ -24,7 +40,6 @@
   "Category": "Teams",
   "CategoryIcon": "assets/avatarIcon",
   "URL": "https://github.com/leandro-menezes/stream-deck-teams-avatar#readme",
-  "PropertyInspectorPath": "pi.html",
   "Version": "1.0.0",
   "OS": [
     {

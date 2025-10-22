@@ -38,6 +38,21 @@ const piConfig = {
   ]
 }
 
+const piRotatingConfig = {
+  entry: './src/js/pi-rotating.js',
+  output: {
+    filename: 'js/pi-rotating.js',
+    path: path.resolve(__dirname, destFolder)
+  },
+  plugins: [
+    new CopyPlugin({
+      patterns: [
+        { from: './src/pi-rotating.html', to: '' }
+      ]
+    })
+  ]
+}
+
 const setupConfig = {
   entry: './src/js/setup.js',
   output: {
@@ -53,4 +68,4 @@ const setupConfig = {
   ]
 }
 
-module.exports = [mainConfig, piConfig, setupConfig]
+module.exports = [mainConfig, piConfig, piRotatingConfig, setupConfig]
