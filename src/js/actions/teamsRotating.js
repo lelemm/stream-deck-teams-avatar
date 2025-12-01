@@ -22,6 +22,7 @@ export default class TeamsRotating extends Action {
     this.avatarCache = new Map() // Cache for avatar images by user ID
     this.transitionFrames = []
     this.currentFrameIndex = 0
+    this.lastDisplayedState = null // Track what's currently displayed to avoid redundant setImage calls
 
     streamDeck.saveSettings(uuid, context, settings)
   }
@@ -30,6 +31,7 @@ export default class TeamsRotating extends Action {
     if (settings === undefined) settings = this._settings
 
     const loadingImage = this.generateLoadingImage()
+    this.lastDisplayedState = 'loading' // Reset state on appear
     this.setImage(context, loadingImage)
 
     // Start polling and carousel
@@ -58,6 +60,7 @@ export default class TeamsRotating extends Action {
     this.isTransitioning = false
     this.avatarCache.clear() // Clear cache when settings change
     this.transitionFrames = []
+    this.lastDisplayedState = null // Reset displayed state
 
     this.startPolling(context)
     this.startCarousel(context)
@@ -67,6 +70,21 @@ export default class TeamsRotating extends Action {
     // Could show current user's details or something similar
     // For now, just cycle to next user immediately
     this.showNextUser(context)
+  }
+
+  /**
+   * Set image only if the state has changed to avoid redundant updates
+   * @param {string} context - Stream Deck context
+   * @param {string} image - Image data URL
+   * @param {string} stateKey - Unique key representing the current state
+   */
+  setImageIfChanged (context, image, stateKey) {
+    if (this.lastDisplayedState === stateKey) {
+      return false // No change, skip update
+    }
+    this.lastDisplayedState = stateKey
+    this.setImage(context, image)
+    return true
   }
 
   startPolling (context) {
@@ -92,14 +110,23 @@ export default class TeamsRotating extends Action {
   startCarousel (context) {
     this.stopCarousel()
 
-    // Duration includes display time + 1 second transition
     const carouselDuration = (this.settings.carouselDuration || 5) * 1000
-    this.carouselInterval = setInterval(() => {
-      // Only start transition if not already transitioning
-      if (!this.isTransitioning) {
-        this.showNextUserWithTransition(context)
-      }
-    }, carouselDuration + 1000) // Add 1 second for transition
+    const disableAnimation = this.settings.disableAnimation || false
+
+    if (disableAnimation) {
+      // No animation - just switch after the carousel duration
+      this.carouselInterval = setInterval(() => {
+        this.showNextUser(context)
+      }, carouselDuration)
+    } else {
+      // Duration includes display time + 1 second transition
+      this.carouselInterval = setInterval(() => {
+        // Only start transition if not already transitioning
+        if (!this.isTransitioning) {
+          this.showNextUserWithTransition(context)
+        }
+      }, carouselDuration + 1000) // Add 1 second for transition
+    }
   }
 
   stopCarousel () {
@@ -119,21 +146,21 @@ export default class TeamsRotating extends Action {
 
       if (!rotatingUrl) {
         const configImage = this.generateConfigRequiredImage()
-        this.setImage(context, configImage)
+        this.setImageIfChanged(context, configImage, 'configRequired')
         return
       }
 
       const response = await fetch(rotatingUrl)
       if (!response.ok) {
         const errorImage = this.generateErrorImage()
-        this.setImage(context, errorImage)
+        this.setImageIfChanged(context, errorImage, 'error')
         return
       }
 
       const usersData = await response.json()
       if (!Array.isArray(usersData)) {
         const invalidDataImage = this.generateInvalidDataImage()
-        this.setImage(context, invalidDataImage)
+        this.setImageIfChanged(context, invalidDataImage, 'invalidData')
         return
       }
 
@@ -172,14 +199,14 @@ export default class TeamsRotating extends Action {
     } catch (error) {
       this.streamDeck.log(`Error fetching users data: ${error.message}`)
       const errorImage = this.generateErrorImage()
-      this.setImage(context, errorImage)
+      this.setImageIfChanged(context, errorImage, 'error')
     }
   }
 
   showNextUser (context) {
     if (this.users.length === 0) {
       const noUsersImage = this.generateNoUsersImage()
-      this.setImage(context, noUsersImage)
+      this.setImageIfChanged(context, noUsersImage, 'noUsers')
       return
     }
 
@@ -279,6 +306,7 @@ export default class TeamsRotating extends Action {
 
   playTransition (context) {
     this.currentFrameIndex = 0
+    this.lastDisplayedState = 'transitioning' // Mark as transitioning to allow frame updates
 
     // Clear any existing transition interval
     if (this.transitionInterval) {
@@ -296,7 +324,7 @@ export default class TeamsRotating extends Action {
     // Play at ~24fps (1000ms / 24 frames = ~41.67ms per frame)
     this.transitionInterval = setInterval(() => {
       if (this.currentFrameIndex < this.transitionFrames.length) {
-        // Update image with current frame
+        // Update image with current frame (always update during transition)
         this.setImage(context, this.transitionFrames[this.currentFrameIndex])
         this.currentFrameIndex++
       } else {
@@ -508,18 +536,20 @@ export default class TeamsRotating extends Action {
     if (this.users.length === 0) {
       // For no users, show a blank image with "No Users" text
       const noUsersImage = this.generateNoUsersImage()
-      this.setImage(context, noUsersImage)
+      this.setImageIfChanged(context, noUsersImage, 'noUsers')
       return
     }
 
     const currentUser = this.users[this.currentUserIndex]
+    const count = currentUser?.count || 0
+    const stateKey = `avatar:${currentUser?.userId}_${count}_${this.currentUserIndex}`
 
     // Set avatar image (use current or fall back to next if available)
     if (this.currentAvatarImage) {
-      this.setImage(context, this.currentAvatarImage)
+      this.setImageIfChanged(context, this.currentAvatarImage, stateKey)
     } else if (this.nextAvatarImage) {
       // Use next avatar as fallback
-      this.setImage(context, this.nextAvatarImage)
+      this.setImageIfChanged(context, this.nextAvatarImage, stateKey)
       this.currentAvatarImage = this.nextAvatarImage
       this.nextAvatarImage = null
       this.prefetchNextAvatar()

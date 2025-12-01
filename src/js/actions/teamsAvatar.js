@@ -15,6 +15,8 @@ export default class TeamsAvatar extends Action {
     this.unreadCount = 0
     this._cacheVersion = 0
     this.avatarCache = new Map() // Cache for avatar images by user email
+    this.lastDisplayedImageState = null // Track last displayed image state
+    this.lastDisplayedTitle = null // Track last displayed title
 
     streamDeck.saveSettings(uuid, context, settings)
   }
@@ -27,11 +29,41 @@ export default class TeamsAvatar extends Action {
     this._cacheVersion = value
   }
 
+  /**
+   * Set image only if the state has changed to avoid redundant updates
+   */
+  setImageIfChanged (context, image, stateKey) {
+    if (this.lastDisplayedImageState === stateKey) {
+      return false
+    }
+    this.lastDisplayedImageState = stateKey
+    this.setImage(context, image)
+    return true
+  }
+
+  /**
+   * Set title only if it has changed to avoid redundant updates
+   */
+  setTitleIfChanged (context, title) {
+    if (this.lastDisplayedTitle === title) {
+      return false
+    }
+    this.lastDisplayedTitle = title
+    this.setTitle(context, title)
+    return true
+  }
+
   onWillAppear (context, settings) {
     if (settings === undefined) settings = this._settings
 
+    // Reset state tracking on appear
+    this.lastDisplayedImageState = null
+    this.lastDisplayedTitle = null
+
     this.setTitle(context, 'Loading...')
+    this.lastDisplayedTitle = 'Loading...'
     this.setImage(context, '') // Clear image initially
+    this.lastDisplayedImageState = 'empty'
 
     // Start fetching data
     this.startPolling(context)
@@ -49,6 +81,9 @@ export default class TeamsAvatar extends Action {
     this.setSettings(settings)
     // Clear cache when settings change
     this.avatarCache.clear()
+    // Reset state tracking
+    this.lastDisplayedImageState = null
+    this.lastDisplayedTitle = null
     // Restart polling with new settings
     if (this.interval) {
       clearInterval(this.interval)
@@ -87,7 +122,8 @@ export default class TeamsAvatar extends Action {
       const messagesUrl = this.settings.messagesWebhookUrl
 
       if (!email || !avatarUrl || !messagesUrl) {
-        this.setTitle(context, 'Config\nRequired')
+        this.setTitleIfChanged(context, 'Config\nRequired')
+        this.setImageIfChanged(context, '', 'configRequired')
         return
       }
 
@@ -123,19 +159,23 @@ export default class TeamsAvatar extends Action {
       this.updateDisplay(context)
     } catch (error) {
       this.streamDeck.log(`Error fetching data: ${error.message}`)
-      this.setTitle(context, 'Error')
+      this.setTitleIfChanged(context, 'Error')
+      this.setImageIfChanged(context, '', 'error')
     }
   }
 
   updateDisplay (context) {
+    const email = this.settings.userEmail
+    const stateKey = `avatar:${email}`
+
     // Set the avatar image
     if (this.avatarImage) {
-      this.setImage(context, this.avatarImage)
+      this.setImageIfChanged(context, this.avatarImage, stateKey)
     }
 
     // Set title with unread count
     const title = this.unreadCount > 0 ? `${this.unreadCount}` : ''
-    this.setTitle(context, title)
+    this.setTitleIfChanged(context, title)
   }
 
   showMessagesModal (context) {
@@ -270,17 +310,29 @@ export default class TeamsAvatar extends Action {
 
       if (avatarOk && messagesOk) {
         this.setTitle(context, 'Test OK')
-        setTimeout(() => this.updateDisplay(context), 2000)
+        this.lastDisplayedTitle = 'Test OK'
+        setTimeout(() => {
+          this.lastDisplayedTitle = null // Force update
+          this.updateDisplay(context)
+        }, 2000)
       } else {
         const errors = []
         if (!avatarOk) errors.push(`Avatar: ${avatarResponse.status}`)
         if (!messagesOk) errors.push(`Messages: ${messagesResponse.status}`)
         this.setTitle(context, 'Test Fail')
-        setTimeout(() => this.updateDisplay(context), 2000)
+        this.lastDisplayedTitle = 'Test Fail'
+        setTimeout(() => {
+          this.lastDisplayedTitle = null // Force update
+          this.updateDisplay(context)
+        }, 2000)
       }
     } catch (error) {
       this.setTitle(context, 'Test Error')
-      setTimeout(() => this.updateDisplay(context), 2000)
+      this.lastDisplayedTitle = 'Test Error'
+      setTimeout(() => {
+        this.lastDisplayedTitle = null // Force update
+        this.updateDisplay(context)
+      }, 2000)
     }
   }
 }

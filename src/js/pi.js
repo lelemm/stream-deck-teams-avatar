@@ -29,6 +29,7 @@ function connectElgatoStreamDeckSocket(inPort, inUUID, inMessageType, inApplicat
       document.getElementById('avatarWebhookUrl').value = settings.avatarWebhookUrl || ''
       document.getElementById('messagesWebhookUrl').value = settings.messagesWebhookUrl || ''
       document.getElementById('pollingInterval').value = settings.pollingInterval || 30
+      document.getElementById('disableAnimation').checked = settings.disableAnimation || false
     }
 
     // Also request current settings as a fallback
@@ -49,6 +50,7 @@ function connectElgatoStreamDeckSocket(inPort, inUUID, inMessageType, inApplicat
       document.getElementById('avatarWebhookUrl').value = settings.avatarWebhookUrl || document.getElementById('avatarWebhookUrl').value
       document.getElementById('messagesWebhookUrl').value = settings.messagesWebhookUrl || document.getElementById('messagesWebhookUrl').value
       document.getElementById('pollingInterval').value = settings.pollingInterval || document.getElementById('pollingInterval').value
+      document.getElementById('disableAnimation').checked = settings.disableAnimation || false
     }
   }
 }
@@ -103,6 +105,7 @@ function saveSettings() {
   const avatarWebhookUrl = document.getElementById('avatarWebhookUrl').value.trim()
   const messagesWebhookUrl = document.getElementById('messagesWebhookUrl').value.trim()
   const pollingInterval = parseInt(document.getElementById('pollingInterval').value) || 30
+  const disableAnimation = document.getElementById('disableAnimation').checked
 
   // Basic validation
   if (!userEmail) {
@@ -125,7 +128,8 @@ function saveSettings() {
     userEmail,
     avatarWebhookUrl,
     messagesWebhookUrl,
-    pollingInterval
+    pollingInterval,
+    disableAnimation
   }
   setSettings(instanceSettings)
 
