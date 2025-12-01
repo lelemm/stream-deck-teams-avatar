@@ -96,12 +96,20 @@ export default class StreamDeck {
 
       if (context in this.activeActions) {
         this.activeActions[context].setSettings(settings)
+        // Also call onDidReceiveSettings if available
+        if (typeof this.activeActions[context].onDidReceiveSettings === 'function') {
+          this.activeActions[context].onDidReceiveSettings(context, payload)
+        }
       }
     } else if (event === 'propertyInspectorDidAppear') {
       this._propertyInspectorDidAppearCallback()
     } else if (event === 'sendToPropertyInspector') {
       this._piCallback()
     } else if (event === 'sendToPlugin') {
+      // Forward to the action's onSendToPlugin method
+      if (context in this.activeActions && typeof this.activeActions[context].onSendToPlugin === 'function') {
+        this.activeActions[context].onSendToPlugin(context, payload)
+      }
       this._sendToPluginCallback()
     }
   }

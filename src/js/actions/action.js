@@ -30,6 +30,10 @@ export default class Action {
     this._settings = settings
   }
 
+  setSettings (settings) {
+    this._settings = settings
+  }
+
   get uuid () {
     return this._uuid
   }

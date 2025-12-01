@@ -22,7 +22,16 @@ function connectElgatoStreamDeckSocket(inPort, inUUID, inMessageType, inApplicat
     }
     websocket.send(JSON.stringify(json))
 
-    // Request current settings
+    // Load initial settings from actionInfo immediately (this is the most reliable source)
+    if (actionInfo && actionInfo.payload && actionInfo.payload.settings) {
+      const settings = actionInfo.payload.settings
+      document.getElementById('userEmail').value = settings.userEmail || ''
+      document.getElementById('avatarWebhookUrl').value = settings.avatarWebhookUrl || ''
+      document.getElementById('messagesWebhookUrl').value = settings.messagesWebhookUrl || ''
+      document.getElementById('pollingInterval').value = settings.pollingInterval || 30
+    }
+
+    // Also request current settings as a fallback
     requestSettings()
   }
 
@@ -48,7 +57,7 @@ function requestSettings() {
   if (websocket && actionInfo) {
     const json = {
       event: 'getSettings',
-      context: uuid
+      context: actionInfo.context  // Use button context, not inspector UUID
     }
     websocket.send(JSON.stringify(json))
   }
