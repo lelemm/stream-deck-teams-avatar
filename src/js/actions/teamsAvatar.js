@@ -10,15 +10,16 @@ export default class TeamsAvatar extends Action {
     super(uuid, streamDeck, context, settings)
 
     this.interval = null
-    this.avatarImage = null
+    this.avatarImage = null // Base avatar image without count overlay
     this.messages = []
     this.unreadCount = 0
     this._cacheVersion = 0
-    this.avatarCache = new Map() // Cache for avatar images by user email
+    this.avatarCache = new Map() // Cache for base avatar images by user email
     this.lastDisplayedImageState = null // Track last displayed image state
-    this.lastDisplayedTitle = null // Track last displayed title
 
-    streamDeck.saveSettings(uuid, context, settings)
+    // Note: Don't call saveSettings here - settings should only be saved
+    // when explicitly changed by the user in the Property Inspector.
+    // Calling it here would overwrite other buttons' settings with stale/empty data.
   }
 
   get cacheVersion () {
@@ -41,29 +42,16 @@ export default class TeamsAvatar extends Action {
     return true
   }
 
-  /**
-   * Set title only if it has changed to avoid redundant updates
-   */
-  setTitleIfChanged (context, title) {
-    if (this.lastDisplayedTitle === title) {
-      return false
-    }
-    this.lastDisplayedTitle = title
-    this.setTitle(context, title)
-    return true
-  }
-
   onWillAppear (context, settings) {
     if (settings === undefined) settings = this._settings
 
     // Reset state tracking on appear
     this.lastDisplayedImageState = null
-    this.lastDisplayedTitle = null
 
-    this.setTitle(context, 'Loading...')
-    this.lastDisplayedTitle = 'Loading...'
-    this.setImage(context, '') // Clear image initially
-    this.lastDisplayedImageState = 'empty'
+    // Show loading image
+    const loadingImage = this.generateLoadingImage()
+    this.setImage(context, loadingImage)
+    this.lastDisplayedImageState = 'loading'
 
     // Start fetching data
     this.startPolling(context)
@@ -83,7 +71,6 @@ export default class TeamsAvatar extends Action {
     this.avatarCache.clear()
     // Reset state tracking
     this.lastDisplayedImageState = null
-    this.lastDisplayedTitle = null
     // Restart polling with new settings
     if (this.interval) {
       clearInterval(this.interval)
@@ -122,8 +109,8 @@ export default class TeamsAvatar extends Action {
       const messagesUrl = this.settings.messagesWebhookUrl
 
       if (!email || !avatarUrl || !messagesUrl) {
-        this.setTitleIfChanged(context, 'Config\nRequired')
-        this.setImageIfChanged(context, '', 'configRequired')
+        const configImage = this.generateConfigRequiredImage()
+        this.setImageIfChanged(context, configImage, 'configRequired')
         return
       }
 
@@ -139,7 +126,7 @@ export default class TeamsAvatar extends Action {
           const avatarBlob = await avatarResponse.blob()
           const avatarDataUrl = await this.blobToDataUrl(avatarBlob)
           this.avatarImage = avatarDataUrl
-          // Cache the avatar
+          // Cache the base avatar (without count overlay)
           this.avatarCache.set(email, avatarDataUrl)
           this.streamDeck.log(`Cached avatar for user ${email}`)
         }
@@ -156,26 +143,24 @@ export default class TeamsAvatar extends Action {
       }
 
       // Update display
-      this.updateDisplay(context)
+      await this.updateDisplay(context)
     } catch (error) {
       this.streamDeck.log(`Error fetching data: ${error.message}`)
-      this.setTitleIfChanged(context, 'Error')
-      this.setImageIfChanged(context, '', 'error')
+      const errorImage = this.generateErrorImage()
+      this.setImageIfChanged(context, errorImage, 'error')
     }
   }
 
-  updateDisplay (context) {
+  async updateDisplay (context) {
     const email = this.settings.userEmail
-    const stateKey = `avatar:${email}`
+    // Include unread count in state key so image updates when count changes
+    const stateKey = `avatar:${email}_${this.unreadCount}`
 
-    // Set the avatar image
+    // Set the avatar image with count overlay
     if (this.avatarImage) {
-      this.setImageIfChanged(context, this.avatarImage, stateKey)
+      const imageWithCount = await this.overlayCountOnImage(this.avatarImage, this.unreadCount)
+      this.setImageIfChanged(context, imageWithCount, stateKey)
     }
-
-    // Set title with unread count
-    const title = this.unreadCount > 0 ? `${this.unreadCount}` : ''
-    this.setTitleIfChanged(context, title)
   }
 
   showMessagesModal (context) {
@@ -309,30 +294,324 @@ export default class TeamsAvatar extends Action {
       const messagesOk = messagesResponse.ok
 
       if (avatarOk && messagesOk) {
-        this.setTitle(context, 'Test OK')
-        this.lastDisplayedTitle = 'Test OK'
+        const testOkImage = this.generateTestOkImage()
+        this.setImage(context, testOkImage)
+        this.lastDisplayedImageState = 'testOk'
         setTimeout(() => {
-          this.lastDisplayedTitle = null // Force update
+          this.lastDisplayedImageState = null // Force update
           this.updateDisplay(context)
         }, 2000)
       } else {
-        const errors = []
-        if (!avatarOk) errors.push(`Avatar: ${avatarResponse.status}`)
-        if (!messagesOk) errors.push(`Messages: ${messagesResponse.status}`)
-        this.setTitle(context, 'Test Fail')
-        this.lastDisplayedTitle = 'Test Fail'
+        const testFailImage = this.generateTestFailImage()
+        this.setImage(context, testFailImage)
+        this.lastDisplayedImageState = 'testFail'
         setTimeout(() => {
-          this.lastDisplayedTitle = null // Force update
+          this.lastDisplayedImageState = null // Force update
           this.updateDisplay(context)
         }, 2000)
       }
     } catch (error) {
-      this.setTitle(context, 'Test Error')
-      this.lastDisplayedTitle = 'Test Error'
+      const testErrorImage = this.generateTestErrorImage()
+      this.setImage(context, testErrorImage)
+      this.lastDisplayedImageState = 'testError'
       setTimeout(() => {
-        this.lastDisplayedTitle = null // Force update
+        this.lastDisplayedImageState = null // Force update
         this.updateDisplay(context)
       }, 2000)
     }
+  }
+
+  // Image generation methods
+
+  generateLoadingImage () {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const size = 144 // Stream Deck button size
+
+    canvas.width = size
+    canvas.height = size
+
+    // Draw blue background
+    ctx.fillStyle = '#0078d4'
+    ctx.fillRect(0, 0, size, size)
+
+    // Draw "Loading..." text
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `bold ${size * 0.15}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Loading...', size / 2, size / 2)
+
+    return canvas.toDataURL('image/png')
+  }
+
+  generateConfigRequiredImage () {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const size = 144 // Stream Deck button size
+
+    canvas.width = size
+    canvas.height = size
+
+    // Draw orange background
+    ctx.fillStyle = '#ff8c00'
+    ctx.fillRect(0, 0, size, size)
+
+    // Draw "Config Required" text
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `bold ${size * 0.12}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Config', size / 2, size / 2 - 10)
+    ctx.fillText('Required', size / 2, size / 2 + 10)
+
+    return canvas.toDataURL('image/png')
+  }
+
+  generateErrorImage () {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const size = 144 // Stream Deck button size
+
+    canvas.width = size
+    canvas.height = size
+
+    // Draw red background
+    ctx.fillStyle = '#d13438'
+    ctx.fillRect(0, 0, size, size)
+
+    // Draw "Error" text
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `bold ${size * 0.2}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Error', size / 2, size / 2)
+
+    return canvas.toDataURL('image/png')
+  }
+
+  generateTestOkImage () {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const size = 144 // Stream Deck button size
+
+    canvas.width = size
+    canvas.height = size
+
+    // Draw green background
+    ctx.fillStyle = '#107c10'
+    ctx.fillRect(0, 0, size, size)
+
+    // Draw "Test OK" text
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `bold ${size * 0.18}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Test OK', size / 2, size / 2)
+
+    return canvas.toDataURL('image/png')
+  }
+
+  generateTestFailImage () {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const size = 144 // Stream Deck button size
+
+    canvas.width = size
+    canvas.height = size
+
+    // Draw red background
+    ctx.fillStyle = '#d13438'
+    ctx.fillRect(0, 0, size, size)
+
+    // Draw "Test Fail" text
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `bold ${size * 0.15}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Test Fail', size / 2, size / 2)
+
+    return canvas.toDataURL('image/png')
+  }
+
+  generateTestErrorImage () {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const size = 144 // Stream Deck button size
+
+    canvas.width = size
+    canvas.height = size
+
+    // Draw dark red background
+    ctx.fillStyle = '#a80000'
+    ctx.fillRect(0, 0, size, size)
+
+    // Draw "Test Error" text
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `bold ${size * 0.13}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('Test Error', size / 2, size / 2)
+
+    return canvas.toDataURL('image/png')
+  }
+
+  // Color utility methods for count overlay
+
+  getDominantColor (imageData) {
+    const data = imageData.data
+    const width = imageData.width
+    const height = imageData.height
+    const colorCount = {}
+    let maxCount = 0
+    let dominantColor = [128, 128, 128] // Default to gray
+
+    // Sample pixels in a regular grid (every 8 pixels for performance)
+    const step = 8
+    for (let y = 0; y < height; y += step) {
+      for (let x = 0; x < width; x += step) {
+        const index = (y * width + x) * 4
+        const r = data[index]
+        const g = data[index + 1]
+        const b = data[index + 2]
+        const alpha = data[index + 3]
+
+        // Skip transparent pixels
+        if (alpha < 128) continue
+
+        // Create a color key (quantize to reduce similar colors)
+        const key = `${Math.floor(r/32)*32},${Math.floor(g/32)*32},${Math.floor(b/32)*32}`
+
+        colorCount[key] = (colorCount[key] || 0) + 1
+
+        if (colorCount[key] > maxCount) {
+          maxCount = colorCount[key]
+          dominantColor = [parseInt(key.split(',')[0]), parseInt(key.split(',')[1]), parseInt(key.split(',')[2])]
+        }
+      }
+    }
+
+    return dominantColor
+  }
+
+  rgbToHsl (r, g, b) {
+    r /= 255
+    g /= 255
+    b /= 255
+
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    let h, s, l = (max + min) / 2
+
+    if (max === min) {
+      h = s = 0 // achromatic
+    } else {
+      const d = max - min
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break
+        case g: h = (b - r) / d + 2; break
+        case b: h = (r - g) / d + 4; break
+      }
+      h /= 6
+    }
+
+    return [h, s, l]
+  }
+
+  hslToRgb (h, s, l) {
+    let r, g, b
+
+    if (s === 0) {
+      r = g = b = l // achromatic
+    } else {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1
+        if (t > 1) t -= 1
+        if (t < 1/6) return p + (q - p) * 6 * t
+        if (t < 1/2) return q
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+        return p
+      }
+
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+      const p = 2 * l - q
+      r = hue2rgb(p, q, h + 1/3)
+      g = hue2rgb(p, q, h)
+      b = hue2rgb(p, q, h - 1/3)
+    }
+
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)]
+  }
+
+  getComplementaryColor (rgb) {
+    // Convert RGB to HSL
+    const [h, s, l] = this.rgbToHsl(rgb[0], rgb[1], rgb[2])
+
+    // Rotate hue by 160 degrees and keep same lightness
+    const newHue = (h + 160/360) % 1
+    let complementaryRgb = this.hslToRgb(newHue, s, l)
+
+    // Check if the complementary color is too dark (lightness < 0.4)
+    const [compH, compS, compL] = this.rgbToHsl(complementaryRgb[0], complementaryRgb[1], complementaryRgb[2])
+
+    // If complementary color is too dark, make it light instead
+    if (compL < 0.4) {
+      complementaryRgb = this.hslToRgb(newHue, Math.max(s, 0.7), Math.max(compL, 0.8))
+    }
+
+    return complementaryRgb
+  }
+
+  rgbToHex (rgb) {
+    return '#' + rgb.map(x => {
+      const hex = x.toString(16)
+      return hex.length === 1 ? '0' + hex : hex
+    }).join('')
+  }
+
+  overlayCountOnImage (imageDataUrl, count) {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const size = 144 // Stream Deck button size
+
+      canvas.width = size
+      canvas.height = size
+
+      const img = new Image()
+      img.onload = () => {
+        // Draw the original image
+        ctx.drawImage(img, 0, 0, size, size)
+
+        if (count > 0) {
+          // Get image data to analyze colors
+          const imageData = ctx.getImageData(0, 0, size, size)
+          const dominantColor = this.getDominantColor(imageData)
+          const complementaryColor = this.getComplementaryColor(dominantColor)
+          const strokeColor = this.rgbToHex(complementaryColor)
+
+          // Draw the number centered in the image
+          ctx.fillStyle = '#ffffff' // White text
+          ctx.font = `bold 144px Arial`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+
+          // Use complementary color for stroke
+          ctx.globalAlpha = 0.5
+          ctx.strokeStyle = '#000000'
+          ctx.lineWidth = 5
+          ctx.strokeText(count.toString(), size / 2, size / 1.6)
+
+          // White fill
+          ctx.fillText(count.toString(), size / 2, size / 1.6)
+          ctx.globalAlpha = 1
+        }
+
+        resolve(canvas.toDataURL('image/png'))
+      }
+      img.onerror = reject
+      img.src = imageDataUrl
+    })
   }
 }

@@ -41,16 +41,18 @@ function connectElgatoStreamDeckSocket(inPort, inUUID, inMessageType, inApplicat
 
     const jsonObj = JSON.parse(event.data)
 
-
     if (jsonObj.event === 'didReceiveSettings') {
-      const settings = jsonObj.payload.settings
+      // Only update UI if the settings are for our specific button context
+      if (actionInfo && jsonObj.context === actionInfo.context) {
+        const settings = jsonObj.payload.settings || {}
 
-      // Update UI with current settings
-      document.getElementById('userEmail').value = settings.userEmail || document.getElementById('userEmail').value
-      document.getElementById('avatarWebhookUrl').value = settings.avatarWebhookUrl || document.getElementById('avatarWebhookUrl').value
-      document.getElementById('messagesWebhookUrl').value = settings.messagesWebhookUrl || document.getElementById('messagesWebhookUrl').value
-      document.getElementById('pollingInterval').value = settings.pollingInterval || document.getElementById('pollingInterval').value
-      document.getElementById('disableAnimation').checked = settings.disableAnimation || false
+        // Update UI with current settings
+        document.getElementById('userEmail').value = settings.userEmail || ''
+        document.getElementById('avatarWebhookUrl').value = settings.avatarWebhookUrl || ''
+        document.getElementById('messagesWebhookUrl').value = settings.messagesWebhookUrl || ''
+        document.getElementById('pollingInterval').value = settings.pollingInterval || 30
+        document.getElementById('disableAnimation').checked = settings.disableAnimation || false
+      }
     }
   }
 }

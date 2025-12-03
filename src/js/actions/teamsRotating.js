@@ -24,7 +24,9 @@ export default class TeamsRotating extends Action {
     this.currentFrameIndex = 0
     this.lastDisplayedState = null // Track what's currently displayed to avoid redundant setImage calls
 
-    streamDeck.saveSettings(uuid, context, settings)
+    // Note: Don't call saveSettings here - settings should only be saved
+    // when explicitly changed by the user in the Property Inspector.
+    // Calling it here would overwrite other buttons' settings with stale/empty data.
   }
 
   onWillAppear (context, settings) {
@@ -537,6 +539,10 @@ export default class TeamsRotating extends Action {
       // For no users, show a blank image with "No Users" text
       const noUsersImage = this.generateNoUsersImage()
       this.setImageIfChanged(context, noUsersImage, 'noUsers')
+      // Clear title when no users
+      if (this.settings.useDisplayNameAsTitle) {
+        this.setTitle(context, '')
+      }
       return
     }
 
@@ -553,6 +559,14 @@ export default class TeamsRotating extends Action {
       this.currentAvatarImage = this.nextAvatarImage
       this.nextAvatarImage = null
       this.prefetchNextAvatar()
+    }
+
+    // Set title with display name if enabled
+    if (this.settings.useDisplayNameAsTitle) {
+      const displayName = currentUser?.displayName || ''
+      this.setTitle(context, displayName)
+    } else {
+      this.setTitle(context, '')
     }
   }
 

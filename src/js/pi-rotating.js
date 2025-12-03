@@ -30,6 +30,7 @@ function connectElgatoStreamDeckSocket(inPort, inUUID, inMessageType, inApplicat
       document.getElementById('pollingRefreshRate').value = settings.pollingRefreshRate || 30
       document.getElementById('carouselDuration').value = settings.carouselDuration || 5
       document.getElementById('disableAnimation').checked = settings.disableAnimation || false
+      document.getElementById('useDisplayNameAsTitle').checked = settings.useDisplayNameAsTitle || false
     }
 
     // Also request current settings as a fallback
@@ -42,14 +43,18 @@ function connectElgatoStreamDeckSocket(inPort, inUUID, inMessageType, inApplicat
     const jsonObj = JSON.parse(event.data)
 
     if (jsonObj.event === 'didReceiveSettings') {
-      const settings = jsonObj.payload.settings
+      // Only update UI if the settings are for our specific button context
+      if (actionInfo && jsonObj.context === actionInfo.context) {
+        const settings = jsonObj.payload.settings || {}
 
-      // Update UI with current settings
-      document.getElementById('avatarWebhookUrl').value = settings.avatarWebhookUrl || document.getElementById('avatarWebhookUrl').value
-      document.getElementById('rotatingWebhookUrl').value = settings.rotatingWebhookUrl || document.getElementById('rotatingWebhookUrl').value
-      document.getElementById('pollingRefreshRate').value = settings.pollingRefreshRate || document.getElementById('pollingRefreshRate').value
-      document.getElementById('carouselDuration').value = settings.carouselDuration || document.getElementById('carouselDuration').value
-      document.getElementById('disableAnimation').checked = settings.disableAnimation || false
+        // Update UI with current settings
+        document.getElementById('avatarWebhookUrl').value = settings.avatarWebhookUrl || ''
+        document.getElementById('rotatingWebhookUrl').value = settings.rotatingWebhookUrl || ''
+        document.getElementById('pollingRefreshRate').value = settings.pollingRefreshRate || 30
+        document.getElementById('carouselDuration').value = settings.carouselDuration || 5
+        document.getElementById('disableAnimation').checked = settings.disableAnimation || false
+        document.getElementById('useDisplayNameAsTitle').checked = settings.useDisplayNameAsTitle || false
+      }
     }
   }
 }
@@ -102,6 +107,7 @@ function saveSettings() {
   const pollingRefreshRate = parseInt(document.getElementById('pollingRefreshRate').value) || 30
   const carouselDuration = parseInt(document.getElementById('carouselDuration').value) || 5
   const disableAnimation = document.getElementById('disableAnimation').checked
+  const useDisplayNameAsTitle = document.getElementById('useDisplayNameAsTitle').checked
 
   // Basic validation
   if (!avatarWebhookUrl || !rotatingWebhookUrl) {
@@ -125,7 +131,8 @@ function saveSettings() {
     rotatingWebhookUrl,
     pollingRefreshRate,
     carouselDuration,
-    disableAnimation
+    disableAnimation,
+    useDisplayNameAsTitle
   }
   setSettings(instanceSettings)
 
